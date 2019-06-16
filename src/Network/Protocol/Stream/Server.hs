@@ -29,13 +29,14 @@ streamServerPeer
     :: forall m id chunk a.
        Monad m
     => StreamServer m id chunk a
-    -> Peer (Stream id chunk) AsServer StIdle m a
+    -> Peer (Stream id chunk) 'AsServer 'StIdle m a
 streamServerPeer StreamServer {runStreamServer} =
-    Await (ClientAgency TokIdle) $ \(MsgGet id) ->
-      Effect $ runStreamServer id >>= pure . producer
+    Await (ClientAgency TokIdle) $ \(MsgGet id_) ->
+      Effect $ runStreamServer id_ >>= pure . producer
   where
     producer :: Producer m chunk a
-             -> Peer (Stream id chunk) AsServer StBusy m a
+             -> Peer (Stream id chunk) 'AsServer 'StBusy m a
     producer (Chunk chunk mnext) =
       Yield (ServerAgency TokBusy) (MsgChunk chunk)
         $ Effect $ mnext >>= pure . producer
+    producer (Result a) = Yield (ServerAgency TokBusy) MsgDone (Done TokDone a)

@@ -23,9 +23,9 @@ instance Functor m => Functor (StreamClient m id chunk) where
 
 
 data Collect m id chunk a = Collect {
-    handleChunk :: chunk -> m (Collect m id chunk a),
-    handleDone  :: a
-  }
+      handleChunk :: chunk -> m (Collect m id chunk a),
+      handleDone  :: a
+    }
 
 instance Functor m => Functor (Collect m id chunk) where
     fmap f Collect{handleChunk, handleDone} = Collect {
@@ -33,11 +33,10 @@ instance Functor m => Functor (Collect m id chunk) where
         handleDone = f handleDone
       }
 
-
 streamClientPeer
   :: Monad m
   => StreamClient m id chunk a
-  -> Peer (Stream id chunk) AsClient StIdle m a
+  -> Peer (Stream id chunk) 'AsClient 'StIdle m a
 streamClientPeer (Request id mcollect) =
     Yield (ClientAgency TokIdle) (MsgGet id)
       $ Effect $ mcollect >>= pure . collectClientPeer
@@ -46,7 +45,7 @@ streamClientPeer (Request id mcollect) =
 collectClientPeer
   :: Monad m
   => Collect m id chunk a
-  -> Peer (Stream id chunk) AsClient StBusy m a
+  -> Peer (Stream id chunk) 'AsClient 'StBusy m a
 collectClientPeer Collect {handleChunk, handleDone} =
     Await (ServerAgency TokBusy) $ \msg -> case msg of
       MsgChunk chunk -> Effect $ handleChunk chunk >>= pure . collectClientPeer

@@ -20,6 +20,12 @@ source-repository-package
 
 source-repository-package
   type: git
+  location: https://github.com/input-output-hk/ouroboros-network
+  subdir: ouroboros-network
+  tag: 422c60bf4bf38d120dca97f75a4a1545928dfacd
+
+source-repository-package
+  type: git
   location: https://github.com/input-output-hk/iohk-monitoring-framework
   subdir:   contra-tracer
   tag: 3222ee56a08a5f041824b6e1026cd3751133a1fd

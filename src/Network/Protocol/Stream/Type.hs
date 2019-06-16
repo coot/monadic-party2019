@@ -19,21 +19,26 @@ data Stream id chunk where
 instance Protocol (Stream id chunk) where
 
     data Message (Stream id chunk) from to where
-         -- request data with a given id
-         MsgGet   :: id -> Message (Stream id chunk) StIdle StBusy
-         -- stream a chunk
-         MsgChunk :: chunk -> Message (Stream id chunk) StBusy StBusy
-         -- done
-         MsgDone  :: Message (Stream id chunk) StBusy StDone
+         -- | Request data with a given id
+         --
+         MsgGet   :: id -> Message (Stream id chunk) 'StIdle 'StBusy
+
+         -- | stream a single chunk
+         --
+         MsgChunk :: chunk -> Message (Stream id chunk) 'StBusy 'StBusy
+
+         -- | Streaming is done.
+         --
+         MsgDone  :: Message (Stream id chunk) 'StBusy 'StDone
 
     data ClientHasAgency st where
-         TokIdle :: ClientHasAgency StIdle
+         TokIdle :: ClientHasAgency 'StIdle
 
     data ServerHasAgency st where
-         TokBusy :: ServerHasAgency StBusy
+         TokBusy :: ServerHasAgency 'StBusy
 
     data NobodyHasAgency st where
-         TokDone :: NobodyHasAgency StDone
+         TokDone :: NobodyHasAgency 'StDone
 
     exclusionLemma_ClientAndServerHaveAgency TokIdle tok = case tok of {}
     exclusionLemma_NobodyAndClientHaveAgency TokDone tok = case tok of {}
