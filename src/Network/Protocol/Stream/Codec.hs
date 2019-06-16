@@ -19,7 +19,6 @@ import           Data.ByteString.Lazy (ByteString)
 
 import           Ouroboros.Network.Codec
 
--- import           Network.TypedProtocol.Codec
 import           Network.Protocol.Stream.Type
 
 
@@ -37,9 +36,10 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
            -> Message (Stream id chunk) st st'
            -> CBOR.Encoding
 
-    encodeMsg (ClientAgency TokIdle) (MsgGet id_) =
+    encodeMsg (ClientAgency TokIdle) (MsgGet chunkSize id_) =
          encodeListLen 2 
       <> encodeWord 0
+      <> encodeWord (fromIntegral chunkSize)
       <> Serialise.encode id_
 
     encodeMsg (ServerAgency TokBusy) (MsgChunk chunk) =
@@ -61,8 +61,9 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
       case (tok, tag, len) of
 
         (ClientAgency TokIdle, 0, 2) -> do
+          chunkSize <- decodeWord
           id_ <- Serialise.decode
-          return $ SomeMessage (MsgGet id_)
+          return $ SomeMessage (MsgGet (fromIntegral chunkSize) id_)
 
         (ServerAgency TokBusy, 1, 2) -> do
           chunk <- Serialise.decode

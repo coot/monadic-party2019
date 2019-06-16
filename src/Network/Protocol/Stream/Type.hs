@@ -21,7 +21,9 @@ instance Protocol (Stream id chunk) where
     data Message (Stream id chunk) from to where
          -- | Request data with a given id
          --
-         MsgGet   :: id -> Message (Stream id chunk) 'StIdle 'StBusy
+         MsgGet   :: Int -- size of a chunk
+                  -> id  -- resource id
+                  -> Message (Stream id chunk) 'StIdle 'StBusy
 
          -- | stream a single chunk
          --

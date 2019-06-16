@@ -44,15 +44,16 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-      "client":file:_ -> streamFileClient file
+      "client":chunkSize:file:_
+                      -> streamFileClient (read chunkSize) file
       "server":_      -> streamFileServer
       _               -> putStrLn $ mconcat $
-                          [ "demo-stream client {file}\n"
+                          [ "demo-stream client {size} {file}\n"
                           , "demo-stream server\n"
                           ]
 
-streamFileClient :: FilePath -> IO ()
-streamFileClient path =
+streamFileClient :: Int -> FilePath -> IO ()
+streamFileClient chunkSize path =
     bracket
       (Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol)
       Socket.close
@@ -66,7 +67,7 @@ streamFileClient path =
         return ()
   where
     peer :: Peer (Stream FilePath BS.ByteString) 'AsClient 'StIdle IO [BS.ByteString]
-    peer = streamClientPeer (clientMap path)
+    peer = streamClientPeer (clientMap path chunkSize)
 
 streamFileServer :: IO ()
 streamFileServer =
@@ -89,6 +90,6 @@ streamFileServer =
 
   where
     peer :: Peer (Stream FilePath BS.ByteString) 'AsServer 'StIdle IO ()
-    peer = withResource (\fp -> openFile fp ReadMode) hClose
-          $ streamServerPeer
-          $ streamServerFromPipe Pipes.ByteString.fromHandle
+    peer = streamServerPeer
+          $ withResource (\fp -> openFile fp ReadMode) hClose
+          $ streamServerFromPipe Pipes.ByteString.hGetSome
