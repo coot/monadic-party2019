@@ -3,11 +3,12 @@
 module Main where
 
 import           Control.Exception (bracket)
-import           Control.Monad (forever)
+import           Control.Monad (forever, when)
 import qualified Pipes.ByteString
 import qualified Data.ByteString as BS
 import           System.IO
 import           System.Environment (getArgs)
+import           System.Directory
 
 import           Control.Tracer (Tracer (..))
 import           Network.TypedProtocol.Core
@@ -46,7 +47,12 @@ main = do
     case args of
       "client":chunkSize:file:_
                       -> streamFileClient (read chunkSize) file
-      "server":_      -> streamFileServer
+      "server":_      -> do
+        -- remove socket if it exists
+        b <- doesFileExist defaultLocalSocketAddrPath
+        when b
+          (removeFile defaultLocalSocketAddrPath)
+        streamFileServer
       _               -> putStrLn $ mconcat $
                           [ "demo-stream client {size} {file}\n"
                           , "demo-stream server\n"
