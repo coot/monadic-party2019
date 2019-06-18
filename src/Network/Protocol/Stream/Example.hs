@@ -23,8 +23,8 @@ clientMap id_ chunkSize = Request id_ chunkSize (pure $ collect [])
   where
     collect :: [chunk] -> Collect m id chunk [chunk]
     collect chunks = Collect {
-        handleChunk = \chunk -> pure (collect (chunk : chunks)),
-        handleDone  = chunks
+        handleChunk     = \chunk -> pure (collect (chunk : chunks)),
+        handleEndStream = chunks
       }
 
 
@@ -43,7 +43,7 @@ streamServerFromPipe f = StreamServer $ \id_ chunkSize -> streamProducerFromPipe
 
       case r of
         Left a ->
-          return $ Result (return a)
+          return $ EndStream (return a)
 
         Right (chunk, pr') ->
           return $ Chunk chunk (streamProducerFromPipe pr')
@@ -61,4 +61,4 @@ withResource openR closeR (StreamServer run) = StreamServer $ \id_ chunkSize -> 
   where
     go :: Maybe handle -> Producer m chunk a -> Producer m chunk a
     go hndl (Chunk chunk mnext) = Chunk chunk (go hndl <$> mnext)
-    go hndl (Result ma) = Result $ traverse_ closeR hndl >> ma
+    go hndl (EndStream ma) = EndStream $ traverse_ closeR hndl >> ma

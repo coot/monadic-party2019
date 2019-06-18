@@ -12,21 +12,23 @@ import           Network.Protocol.Stream.Type
 
 
 newtype StreamServer m id chunk a = StreamServer {
-    runStreamServer :: id
-                    -- ^ resouce id
-                    -> Int
-                    -- ^ chunk size
-                    -> m (Producer m chunk a)
+    handleStream :: id
+                 -- ^ resouce id
+                 -> Int
+                 -- ^ chunk size
+                 -> m (Producer m chunk a)
   }
 
 
 data Producer m chunk a where
-     Chunk :: chunk
-           -> m (Producer m chunk a)
-           -> Producer m chunk a
+     Chunk
+       :: chunk
+       -> m (Producer m chunk a)
+       -> Producer m chunk a
 
-     Result :: m a
-            -> Producer m chunk a
+     EndStream
+       :: m a
+       -> Producer m chunk a
 
 
 streamServerPeer
@@ -34,15 +36,17 @@ streamServerPeer
        Monad m
     => StreamServer m id chunk a
     -> Peer (Stream id chunk) 'AsServer 'StIdle m a
-streamServerPeer StreamServer {runStreamServer} =
+streamServerPeer StreamServer {handleStream} =
     Await (ClientAgency TokIdle) $ \(MsgGet chunkSize id_) ->
-      Effect $ runStreamServer id_ chunkSize >>= pure . producer
+      Effect $ handleStream id_ chunkSize >>= pure . producer
   where
     producer :: Producer m chunk a
              -> Peer (Stream id chunk) 'AsServer 'StBusy m a
+
     producer (Chunk chunk mnext) =
       Yield (ServerAgency TokBusy) (MsgChunk chunk)
         $ Effect $ mnext >>= pure . producer
-    producer (Result ma) = Effect $ do
+
+    producer (EndStream ma) = Effect $ do
       a <- ma
-      return $ Yield (ServerAgency TokBusy) MsgDone (Done TokDone a)
+      return $ Yield (ServerAgency TokBusy) MsgEndStream (Done TokDone a)

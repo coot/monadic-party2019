@@ -47,7 +47,7 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
       <> encodeWord 1
       <> Serialise.encode chunk
 
-    encodeMsg (ServerAgency TokBusy) MsgDone =
+    encodeMsg (ServerAgency TokBusy) MsgEndStream =
          encodeListLen 1
       <> encodeWord 2
 
@@ -69,7 +69,7 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
           chunk <- Serialise.decode
           return $ SomeMessage (MsgChunk chunk)
 
-        (ServerAgency TokBusy, 2, 1) -> return $ SomeMessage MsgDone
+        (ServerAgency TokBusy, 2, 1) -> return $ SomeMessage MsgEndStream
 
         (_, _, _) -> fail $ "codecStream: unknown message: " ++ show tag
 

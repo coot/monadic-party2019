@@ -24,6 +24,7 @@ import           Network.Protocol.Stream.Example
 
 import qualified Network.Socket as Socket
 
+
 mkLocalSocketAddrInfo :: FilePath -> Socket.AddrInfo
 mkLocalSocketAddrInfo socketPath =
     Socket.AddrInfo
@@ -34,29 +35,15 @@ mkLocalSocketAddrInfo socketPath =
       (Socket.SockAddrUnix socketPath)
       Nothing
 
+
 defaultLocalSocketAddrPath :: FilePath
 defaultLocalSocketAddrPath =  "./demo-stream.sock"
+
 
 defaultLocalSocketAddrInfo :: Socket.AddrInfo
 defaultLocalSocketAddrInfo = 
     mkLocalSocketAddrInfo defaultLocalSocketAddrPath
 
-main :: IO ()
-main = do
-    args <- getArgs
-    case args of
-      "client":chunkSize:file:_
-                      -> streamFileClient (read chunkSize) file
-      "server":_      -> do
-        -- remove socket if it exists
-        b <- doesFileExist defaultLocalSocketAddrPath
-        when b
-          (removeFile defaultLocalSocketAddrPath)
-        streamFileServer
-      _               -> putStrLn $ mconcat $
-                          [ "demo-stream client {size} {file}\n"
-                          , "demo-stream server\n"
-                          ]
 
 streamFileClient :: Int -> FilePath -> IO ()
 streamFileClient chunkSize path =
@@ -75,6 +62,7 @@ streamFileClient chunkSize path =
     peer :: Peer (Stream FilePath BS.ByteString) 'AsClient 'StIdle IO [BS.ByteString]
     peer = streamClientPeer (clientMap path chunkSize)
 
+
 streamFileServer :: IO ()
 streamFileServer =
     bracket
@@ -82,7 +70,7 @@ streamFileServer =
       Socket.close
       $ \fd -> do
         --
-        -- simple accept loop
+        -- simple accept loop, no error handling
         --
         Socket.bind fd (Socket.addrAddress defaultLocalSocketAddrInfo)
         Socket.listen fd 1
@@ -93,9 +81,26 @@ streamFileServer =
             codecStream
             (socketAsChannel fd')
             peer
-
   where
     peer :: Peer (Stream FilePath BS.ByteString) 'AsServer 'StIdle IO ()
     peer = streamServerPeer
-          $ withResource (\fp -> openFile fp ReadMode) hClose
-          $ streamServerFromPipe Pipes.ByteString.hGetSome
+            $ withResource (\fp -> openFile fp ReadMode) hClose
+            $ streamServerFromPipe Pipes.ByteString.hGetSome
+
+
+main :: IO ()
+main = do
+    args <- getArgs
+    case args of
+      "client":chunkSize:file:_
+                      -> streamFileClient (read chunkSize) file
+      "server":_      -> do
+        -- remove socket if it exists
+        b <- doesFileExist defaultLocalSocketAddrPath
+        when b
+          (removeFile defaultLocalSocketAddrPath)
+        streamFileServer
+      _               -> putStrLn $ mconcat $
+                          [ "demo-stream client {size} {file}\n"
+                          , "demo-stream server\n"
+                          ]
