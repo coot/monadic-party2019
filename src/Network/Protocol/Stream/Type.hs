@@ -37,7 +37,11 @@ instance Protocol (Stream id chunk) where
 
          -- | Streaming is done.
          --
-         MsgEndStream :: Message (Stream id chunk) 'StBusy 'StDone
+         MsgEndStream :: Message (Stream id chunk) 'StBusy 'StIdle
+
+         -- | Stop the protocol.
+         --
+         MsgDone  :: Message (Stream id chunk) 'StIdle 'StDone
 
     -- | Singletons of states in which client has the agency.
     --

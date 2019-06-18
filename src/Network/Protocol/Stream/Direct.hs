@@ -3,7 +3,6 @@
 
 module Network.Protocol.Stream.Direct where
 
-
 import           Network.Protocol.Stream.Client
 import           Network.Protocol.Stream.Server
 
@@ -14,19 +13,22 @@ direct :: forall m id chunk a b. Monad m
        -> m (a, b)
 
 direct (Request id_ chunkSize mcollect) StreamServer {handleStream} = do
-    collect <- mcollect
+    collect  <- mcollect
     producer <- handleStream id_ chunkSize
     go collect producer
   where
     go :: Collect  m id chunk a
-       -> Producer m    chunk b
+       -> Producer m id chunk b
        -> m (a, b)
 
     go Collect {handleChunk} (Chunk chunk mproducer) = do
-      collect <- handleChunk chunk
+      collect  <- handleChunk chunk
       producer <- mproducer
       go collect producer
 
-    go Collect {handleEndStream = a} (EndStream mb) = do
-      b <- mb
-      return (a, b)
+    go Collect {handleEndStream} (EndStream mnext) = do
+      client <- handleEndStream
+      server <- mnext
+      direct client server
+
+direct (ClientDone a) StreamServer {handleDone = b} = return (a, b)

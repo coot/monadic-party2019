@@ -51,6 +51,9 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
          encodeListLen 1
       <> encodeWord 2
 
+    encodeMsg (ClientAgency TokIdle) MsgDone =
+         encodeListLen 1
+      <> encodeWord 3
 
     decodeMsg :: forall (pr :: PeerRole) (st :: Stream id chunk) s.
               PeerHasAgency pr st
@@ -70,6 +73,8 @@ codecStream = mkCodecCborLazyBS encodeMsg decodeMsg
           return $ SomeMessage (MsgChunk chunk)
 
         (ServerAgency TokBusy, 2, 1) -> return $ SomeMessage MsgEndStream
+
+        (ClientAgency TokIdle, 3, 1) -> return $ SomeMessage MsgDone
 
         (_, _, _) -> fail $ "codecStream: unknown message: " ++ show tag
 

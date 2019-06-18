@@ -21,31 +21,40 @@ data StreamClient m id chunk a where
              -> m (Collect m id chunk a)
              -> StreamClient m id chunk a
 
+     ClientDone
+             :: a
+             -> StreamClient m id chunk a
+
 instance Functor m => Functor (StreamClient m id chunk) where
     fmap f (Request id_ chunkSize mcollect) =
       Request id_ chunkSize ((fmap . fmap) f mcollect)
+    fmap f (ClientDone a) = ClientDone (f a)
 
 
 data Collect m id chunk a = Collect {
       handleChunk     :: chunk -> m (Collect m id chunk a),
-      handleEndStream :: a
+      handleEndStream :: m (StreamClient m id chunk a)
     }
 
 
 instance Functor m => Functor (Collect m id chunk) where
     fmap f Collect{handleChunk, handleEndStream} = Collect {
         handleChunk     = (fmap . fmap) f . handleChunk,
-        handleEndStream = f handleEndStream
+        handleEndStream = fmap f <$> handleEndStream
       }
 
- 
+
 streamClientPeer
   :: Monad m
   => StreamClient m id chunk a
   -> Peer (Stream id chunk) 'AsClient 'StIdle m a
+
 streamClientPeer (Request id_ chunkSize mcollect) =
     Yield (ClientAgency TokIdle) (MsgGet chunkSize id_)
       $ Effect $ mcollect >>= pure . collectClientPeer
+
+streamClientPeer (ClientDone a) =
+    Yield (ClientAgency TokIdle) MsgDone (Done TokDone a)
 
 
 collectClientPeer
@@ -55,4 +64,4 @@ collectClientPeer
 collectClientPeer Collect {handleChunk, handleEndStream} =
     Await (ServerAgency TokBusy) $ \msg -> case msg of
       MsgChunk chunk -> Effect $ handleChunk chunk >>= pure . collectClientPeer
-      MsgEndStream   -> Done TokDone handleEndStream
+      MsgEndStream   -> Effect $ streamClientPeer <$> handleEndStream

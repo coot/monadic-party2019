@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
@@ -45,8 +46,8 @@ defaultLocalSocketAddrInfo =
     mkLocalSocketAddrInfo defaultLocalSocketAddrPath
 
 
-streamFileClient :: Int -> FilePath -> IO ()
-streamFileClient chunkSize path =
+streamFileClient :: Int -> [FilePath] -> IO ()
+streamFileClient chunkSize paths =
     bracket
       (Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol)
       Socket.close
@@ -59,8 +60,8 @@ streamFileClient chunkSize path =
           peer
         return ()
   where
-    peer :: Peer (Stream FilePath BS.ByteString) 'AsClient 'StIdle IO [BS.ByteString]
-    peer = streamClientPeer (clientMap path chunkSize)
+    peer :: Peer (Stream FilePath BS.ByteString) 'AsClient 'StIdle IO [[BS.ByteString]]
+    peer = streamClientPeer (clientMap (map (,chunkSize) paths))
 
 
 streamFileServer :: IO ()
@@ -82,7 +83,7 @@ streamFileServer =
             (socketAsChannel fd')
             peer
   where
-    peer :: Peer (Stream FilePath BS.ByteString) 'AsServer 'StIdle IO ()
+    peer :: Peer (Stream FilePath BS.ByteString) 'AsServer 'StIdle IO [()]
     peer = streamServerPeer
             $ withResource (\fp -> openFile fp ReadMode) hClose
             $ streamServerFromPipe Pipes.ByteString.hGetSome
@@ -92,8 +93,8 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-      "client":chunkSize:file:_
-                      -> streamFileClient (read chunkSize) file
+      "client":chunkSize:files
+                      -> streamFileClient (read chunkSize) files
       "server":_      -> do
         -- remove socket if it exists
         b <- doesFileExist defaultLocalSocketAddrPath
